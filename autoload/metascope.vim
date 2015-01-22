@@ -48,41 +48,68 @@ endif
 let s:scope_prototype = {}
 
 function! s:scope_new(definition) abort " {{{
-	call s:ensure_has_key('definition', a:definition, 'scope_identifier')
 	call s:ensure_has_key('definition', a:definition, 'name')
 
 	" contexts: scope_identifier -> {data}
-	return extend(copy(s:scope_prototype), {
+	let instance = extend(copy(s:scope_prototype), {
 		\ 'name': a:definition.name,
-		\ 'scope_identifier': a:definition.scope_identifier,
-		\ 'contexts': {}
 		\ })
-endfunction " }}}
 
-function! s:scope_prototype.get(name, ...) abort " {{{
-	let id = self.scope_identifier()
-	let context = get(self.contexts, id, {})
-	if a:0 == 0
-		if !has_key(context, a:name)
-			throw 'metascope: variable ' . a:name . ' is not defined in current ' . self.name . ' scope'
-		endif
-		return context[a:name]
+	let storage_type = get(a:definition, 'storage_type', 'internal')
+	if storage_type ==# 'internal'
+		call s:ensure_has_key('definition', a:definition, 'scope_identifier')
+		let instance.scope_identifier = a:definition.scope_identifier
+		let instance.contexts = {}
+		call extend(instance, s:storage_internal)
+	elseif storage_type ==# 'dynamic_dict'
+		call s:ensure_has_key('definition', a:definition, 'storage')
+		let instance.storage = a:definition.storage
+		call extend(instance, s:storage_dynamic_dict)
 	else
-		return get(context, a:name, a:1)
+		throw 'metascope: Unknown storage type: ' . storage_type
+	endif
+	return instance
+endfunction " }}}
+
+" Storage: dynamic dict {{{
+let s:storage_dynamic_dict = {}
+function! s:storage_dynamic_dict.get(name, ...) dict abort " {{{
+	let dict = self.storage()
+	if a:0 == 0
+		if !has_key(dict, a:name)
+			throw self._undefined_var_message(a:name)
+		endif
+		return dict[a:name]
+	else
+		return get(dict, a:name, a:1)
 	endif
 endfunction " }}}
 
-function! s:scope_prototype.set(name, value) abort " {{{
-	let id = self.scope_identifier()
-	let context = get(self.contexts, id, {})
-	let self.contexts[id] = context
-	let context[a:name]  = a:value
+function! s:storage_dynamic_dict.set(name, value) dict abort " {{{
+	let dict = self.storage()
+	let dict[a:name] = a:value
 endfunction " }}}
 
-function! s:scope_prototype.clear_context(context_id) abort " {{{
-	if has_key(self.contexts, a:context_id)
-		unlet self.context[a:context_id]
-	endif
+function! s:storage_dynamic_dict.exists(name) dict abort " {{{
+	return has_key(self.storage(), a:name)
+endfunction " }}}
+
+lockvar! s:storage_dynamic_dict
+" }}}
+
+" Storage: internal {{{
+let s:storage_internal = copy(s:storage_dynamic_dict)
+
+function! s:storage_internal.storage() dict abort " {{{
+	let key = self.scope_identifier()
+	let c = get(self.contexts, key, {})
+	let self.contexts[key] = c
+	return c
+endfunction " }}}
+" }}}
+
+function! s:scope_prototype._undefined_var_message(name) dict abort " {{{
+	return 'metascope: variable `' . a:name . '` is not defined in current scope(' . self.name . ')'
 endfunction " }}}
 
 lockvar! s:scope_prototype

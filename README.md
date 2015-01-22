@@ -32,6 +32,6 @@ echo metascope#get('filetype:foo') " error: filetype:foo is not found in this sc
 ## Default scopes
 
 * `buffer`, `window`, `tab`, `global`
-  * Like VimL's `b:`, `w:`, `t:`, `g:`
+  * Same as VimL's `b:`, `w:`, `t:`, `g:` scope
 * `filetype`
 
