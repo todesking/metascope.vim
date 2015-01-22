@@ -5,13 +5,7 @@ let s:scopes = {}
 let s:data = {}
 
 function! metascope#register(definition) abort " {{{
-	call s:ensure_has_key('definition', a:definition, 'scope_identifier')
-	call s:ensure_has_key('definition', a:definition, 'name')
-
-	let definition = copy(a:definition)
-	lockvar! definition
-	let s:scopes[a:definition.name] =
-		\ extend(copy(s:scope_prototype), {'definition': definition, 'data': {}})
+	let s:scopes[a:definition.name] = s:scope_new(a:definition)
 endfunction " }}}
 
 function! metascope#defined(fullname) abort " {{{
@@ -53,25 +47,42 @@ if exists('s:scope_prototype')
 endif
 let s:scope_prototype = {}
 
+function! s:scope_new(definition) abort " {{{
+	call s:ensure_has_key('definition', a:definition, 'scope_identifier')
+	call s:ensure_has_key('definition', a:definition, 'name')
+
+	" contexts: scope_identifier -> {data}
+	return extend(copy(s:scope_prototype), {
+		\ 'name': a:definition.name,
+		\ 'scope_identifier': a:definition.scope_identifier,
+		\ 'contexts': {}
+		\ })
+endfunction " }}}
+
 function! s:scope_prototype.get(name, ...) abort " {{{
-	let key = self.make_internal_key(a:name)
+	let id = self.scope_identifier()
+	let context = get(self.contexts, id, {})
 	if a:0 == 0
-		if !has_key(self.data, key)
-			throw 'metascope: variable ' . a:name . ' is not defined in current ' . self.definition.name . ' scope'
+		if !has_key(context, a:name)
+			throw 'metascope: variable ' . a:name . ' is not defined in current ' . self.name . ' scope'
 		endif
-		return self.data[key]
+		return context[a:name]
 	else
-		return get(self.data, key, a:1)
+		return get(context, a:name, a:1)
 	endif
 endfunction " }}}
 
-function! s:scope_prototype.make_internal_key(name) abort " {{{
-	let id = self.definition.scope_identifier()
-	return self.definition.name . ':' . id . ':' . a:name
+function! s:scope_prototype.set(name, value) abort " {{{
+	let id = self.scope_identifier()
+	let context = get(self.contexts, id, {})
+	let self.contexts[id] = context
+	let context[a:name]  = a:value
 endfunction " }}}
 
-function! s:scope_prototype.set(name, value) abort " {{{
-	let self.data[self.make_internal_key(a:name)] = a:value
+function! s:scope_prototype.clear_context(context_id) abort " {{{
+	if has_key(self.contexts, a:context_id)
+		unlet self.context[a:context_id]
+	endif
 endfunction " }}}
 
 lockvar! s:scope_prototype
