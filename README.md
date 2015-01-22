@@ -24,14 +24,14 @@ call metascope#set('filetype:foo', 10)
 
 echo metascope#get('filetype:foo')
 
-" Get accessor of current scope
-let scope = metascope#accessor('filetype:foo')
+set ft = xxx
 
-set ft=xxx
-
-call scope.set(10)
-echo scope.get()
-
-" Get specific accessor(filetype = vim)
-let scope = metascope#accessor('filetype:foo', 'vim')
+echo metascope#get('filetype:foo') " error: filetype:foo is not found in this scope
 ```
+
+## Default scopes
+
+* `buffer`, `window`, `tab`, `global`
+  * Like VimL's `b:`, `w:`, `t:`, `g:`
+* `filetype`
+

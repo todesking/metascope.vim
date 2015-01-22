@@ -1,5 +1,5 @@
-" typename -> definition
-let s:definitions = {}
+" scopename -> scope
+let s:scopes = {}
 
 " internal_key -> data
 let s:data = {}
@@ -8,54 +8,37 @@ function! metascope#register(definition) abort " {{{
 	call s:ensure_has_key('definition', a:definition, 'scope_identifier')
 	call s:ensure_has_key('definition', a:definition, 'name')
 
-	let s:definitions[a:definition.name] = a:definition
+	let definition = copy(a:definition)
+	lockvar! definition
+	let s:scopes[a:definition.name] =
+		\ extend(copy(s:scope_prototype), {'definition': definition, 'data': {}})
 endfunction " }}}
 
 function! metascope#defined(fullname) abort " {{{
-	return has_key(s:data, metascope#internal_key(a:fullname))
+	let [scope, name] = s:parse_name(a:fullname)
+	return scope.is_defined(name)
 endfunction " }}}
 
 function! metascope#get(fullname, ...) abort " {{{
-	let key = metascope#internal_key(a:fullname)
-	if !has_key(s:data, key)
-		throw 'metascope: variable ' . a:fullname . ' is not set in current scope'
-	endif
-	return s:data[key]
+	let [scope, name] = s:parse_name(a:fullname)
+	return call(scope.get, [name] + a:000, scope)
 endfunction " }}}
 
 function! metascope#set(fullname, data) abort " {{{
-	let s:data[metascope#internal_key(a:fullname)] = a:data
+	let [scope, name] = s:parse_name(a:fullname)
+	call scope.set(name, a:data)
 endfunction " }}}
 
-function! metascope#definition(typename) abort " {{{
-	if !has_key(s:definitions, a:typename)
-		throw 'metascope: Unknown scope type name: ' . a:typename
+function! metascope#scope(scopename) abort " {{{
+	if !has_key(s:scopes, a:scopename)
+		throw 'metascope: Unknown scope name: ' . a:scopename
 	endif
-	return s:definitions[a:typename]
-endfunction " }}}
-
-function! metascope#internal_key(fullname) abort " {{{
-	let [typename, name] = s:parse_name(a:fullname)
-	let definition = metascope#definition(typename)
-
-	let id = definition.scope_identifier()
-
-	return typename . ':' . id . ':' . name
-endfunction " }}}
-
-function! metascope#accessor(fullname, ...) abort " {{{
-	if a:0 == 0
-		return s:new_accessor(metascope#internal_key(a:fullname))
-	else
-		let [typename, name] = s:parse_name(a:fullname)
-		call metascope#definition(typename) " ensure typename is registered
-		return s:new_accessor(typename . ':' . a:1 . ':' . name)
-	endif
+	return s:scopes[a:scopename]
 endfunction " }}}
 
 function! s:parse_name(fullname) abort " {{{
-	let [typename, name] = split(a:fullname, ':')
-	return [typename, name]
+	let [scopename, name] = split(a:fullname, ':')
+	return [metascope#scope(scopename), name]
 endfunction " }}}
 
 function! s:ensure_has_key(name, dic, key) abort " {{{
@@ -64,25 +47,32 @@ function! s:ensure_has_key(name, dic, key) abort " {{{
 	endif
 endfunction " }}}
 
-function! s:new_accessor(internal_key) abort " {{{
-	return extend(copy(s:accessor_prototype), {'key': a:internal_key})
-endfunction " }}}
-
-if exists('s:accessor_prototype')
-	unlet s:accessor_prototype
+" class Scope {{{
+if exists('s:scope_prototype')
+	unlet s:scope_prototype
 endif
-let s:accessor_prototype = {}
+let s:scope_prototype = {}
 
-function! s:accessor_prototype.get() dict abort " {{{
-	return s:data[self.key]
+function! s:scope_prototype.get(name, ...) abort " {{{
+	let key = self.make_internal_key(a:name)
+	if a:0 == 0
+		if !has_key(self.data, key)
+			throw 'metascope: variable ' . a:name . ' is not defined in current ' . self.definition.name . ' scope'
+		endif
+		return self.data[key]
+	else
+		return get(self.data, key, a:1)
+	endif
 endfunction " }}}
 
-function! s:accessor_prototype.set(value) dict abort " {{{
-	let s:data[self.key] = a:value
+function! s:scope_prototype.make_internal_key(name) abort " {{{
+	let id = self.definition.scope_identifier()
+	return self.definition.name . ':' . id . ':' . a:name
 endfunction " }}}
 
-function! s:accessor_prototype.is_defined() dict abort " {{{
-	return has_key(s:data, self.key)
+function! s:scope_prototype.set(name, value) abort " {{{
+	let self.data[self.make_internal_key(a:name)] = a:value
 endfunction " }}}
 
-lockvar! s:accessor_prototype
+lockvar! s:scope_prototype
+" }}}
