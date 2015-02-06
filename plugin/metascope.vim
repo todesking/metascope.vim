@@ -19,7 +19,7 @@ function! s:accessor_set(dict, name, value) abort " {{{
 endfunction " }}}
 
 " Scope buffer {{{
-let s:def = {'name': 'buffer', 'storage_type': 'dynamic_dict'}
+let s:def = {'name': 'b', 'storage_type': 'dynamic_dict'}
 
 function! s:def.storage() abort " {{{
 	return b:
@@ -30,7 +30,7 @@ unlet s:def
 " }}}
 
 " Scope window {{{
-let s:def = {'name': 'window', 'storage_type': 'dynamic_dict'}
+let s:def = {'name': 'w', 'storage_type': 'dynamic_dict'}
 
 function! s:def.storage() abort " {{{
 	return w:
@@ -41,7 +41,7 @@ unlet s:def
 " }}}
 
 " Scope tab {{{
-let s:def = {'name': 'tab', 'storage_type': 'dynamic_dict'}
+let s:def = {'name': 't', 'storage_type': 'dynamic_dict'}
 
 function! s:def.storage() abort " {{{
 	return t:
@@ -52,7 +52,7 @@ unlet s:def
 " }}}
 
 " Scope global {{{
-let s:def = {'name': 'global', 'storage_type': 'dynamic_dict'}
+let s:def = {'name': 'g', 'storage_type': 'dynamic_dict'}
 
 function! s:def.storage() abort " {{{
 	return g:
